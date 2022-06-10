@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" serverName="viet" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="viet">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/quand/Project/rams_ed" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+          <excludedPaths>
+            <excludedPath path="/quand/Project/rams_ed/runs" />
+            <excludedPath path="/quand/Project/rams_ed/__pycache__" />
+          </excludedPaths>
+        </serverdata>
+      </paths>
+    </serverData>
+  </component>
+</project>
