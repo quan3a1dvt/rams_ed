@@ -13709,3 +13709,5 @@ W0608 23:39:09.895015 140461368809216 application.py:556] path /libraries/adodb/
 W0608 23:39:10.041925 140461368809216 application.py:556] path /xaradodb/server.php not found, sending 404
 E0609 03:52:37.241971 139836958942976 _internal.py:224] 123.160.221.22 - - [09/Jun/2022 03:52:37] code 400, message Bad request version ('À\x13À')
 E0609 04:15:59.566643 140461368809216 _internal.py:224] 111.7.96.147 - - [09/Jun/2022 04:15:59] code 400, message Bad request version ('À\x13À')
+E0610 14:37:50.766798 139836958942976 _internal.py:224] 167.94.138.60 - - [10/Jun/2022 14:37:50] code 400, message Bad request version ('À\x14À')
+E0610 14:37:52.335491 139836958942976 _internal.py:224] 167.94.138.60 - - [10/Jun/2022 14:37:52] code 505, message Invalid HTTP version (2.0)

@@ -46,6 +46,13 @@ class BertEmbedding(Module):
 
         return all_embeddings
 
+class unsqueeze(Module):
+    def __init__(self, idx):
+        super(transpose, self).__init__()
+        self.idx = idx
+
+    def forward(self, x):
+        return torch.unsqueeze(x, self.idx)
 
 class transpose(Module):
     def __init__(self):
@@ -87,23 +94,17 @@ class MLPModel(Module):
         self.embeddings = BertEmbedding(args)
 
         self.fc = Sequential(
-            Conv1d(Ci, 1024, padding='same', kernel_size=3),
+            LSTM(Ci, 1024, 2, dropout=0.1),
+            SelectItem(0),
             ReLU(),
-            Dropout(0.2),
-            Conv1d(1024, 1024, padding='same', kernel_size=3),
+            Linear(1024, 512),
             ReLU(),
-            Dropout(0.2),
-            transpose(),
-            Linear(1024, 256),
-            ReLU(),
-            Dropout(),
-            Linear(256, self.c),
+            Linear(512, self.c),
 
         )
 
     def forward(self, inputs):
-        x = self.embeddings(inputs)  # B x L x D
-        x = torch.transpose(x, 0, 1)
+        x = self.embeddings(inputs)
         logits = self.fc(x)
         preds = torch.argmax(logits, dim=-1)
         return logits, preds

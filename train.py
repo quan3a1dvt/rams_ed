@@ -13,9 +13,9 @@ import sys
 
 def arugment_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--lr', type=float, default=4e-5)
+    parser.add_argument('--lr', type=float, default=2e-5)
     parser.add_argument('--epoch', type=float, default=40)
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--update_bert', default=False, action='store_true')
 
     parser.add_argument('--bert_type', type=str, default='bert-base-cased')
