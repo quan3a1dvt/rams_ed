@@ -2,7 +2,8 @@ import torch
 import numpy as np
 from torch.nn import *
 from transformers import AutoModel
-
+import torch.nn.functional as F
+from layers import GraphConvolution
 
 class BertEmbedding(Module):
 
@@ -82,11 +83,10 @@ class SelectItem(Module):
     def forward(self, inputs):
         return inputs[self.item_index]
 
-
-class MLPModel(Module):
+class CNNModel(Module):
 
     def __init__(self, args):
-        super(MLPModel, self).__init__()
+        super(CNNModel, self).__init__()
         self.device = args.device
         self.c = c = len(args.label2index)
 
@@ -94,10 +94,43 @@ class MLPModel(Module):
         self.embeddings = BertEmbedding(args)
 
         self.fc = Sequential(
-            LSTM(Ci, 1024, 2, dropout=0.1),
+            Conv1d(Ci, 1024, padding='same', kernel_size=3),
+            ReLU(),
+            Dropout(0.2),
+            Conv1d(1024, 1024, padding='same', kernel_size=3),
+            ReLU(),
+            Dropout(0.2),
+            transpose(),
+            Linear(1024, 256),
+            ReLU(),
+            Dropout(),
+            Linear(256, self.c),
+
+        )
+
+    def forward(self, inputs):
+        x = self.embeddings(inputs)  # B x L x D
+        x = torch.transpose(x, 0, 1)
+        logits = self.fc(x)
+        preds = torch.argmax(logits, dim=-1)
+        return logits, preds
+
+class LSTMModel(Module):
+
+    def __init__(self, args):
+        super(LSTMModel, self).__init__()
+        self.device = args.device
+        self.c = c = len(args.label2index)
+
+        self.Ci = Ci = 8 * 768
+        self.embeddings = BertEmbedding(args)
+
+        self.fc = Sequential(
+            LSTM(Ci, 1024, 2, dropout=0.3),
             SelectItem(0),
             ReLU(),
             Linear(1024, 512),
+            Dropout(0.3),
             ReLU(),
             Linear(512, self.c),
 
@@ -106,6 +139,83 @@ class MLPModel(Module):
     def forward(self, inputs):
         x = self.embeddings(inputs)
         logits = self.fc(x)
+        preds = torch.argmax(logits, dim=-1)
+        return logits, preds
+
+class GRUModel(Module):
+
+    def __init__(self, args):
+        super(GRUModel, self).__init__()
+        self.device = args.device
+        self.c = c = len(args.label2index)
+
+        self.Ci = Ci = 8 * 768
+        self.embeddings = BertEmbedding(args)
+
+        self.fc = Sequential(
+            GRU(8*768, 1024, dropout=0.3),
+            SelectItem(0),
+            ReLU(),
+            Linear(1024, 1024),
+            Dropout(0.3),
+            ReLU(),
+            Linear(1024, self.c),
+
+        )
+
+    def forward(self, inputs):
+        x = self.embeddings(inputs)
+        logits = self.fc(x)
+        preds = torch.argmax(logits, dim=-1)
+        return logits, preds
+
+
+def diagonal_block(adj_matrix1, adj_matrix2):
+    adj_shape1 = adj_matrix1.shape
+    adj_shape2 = adj_matrix2.shape
+    Z1 = np.zeros((adj_shape1[0], adj_shape2[1]), dtype=np.float32)
+    Z2 = np.zeros((adj_shape2[1], adj_shape1[0]), dtype=np.float32)
+    adj_matrix = np.asarray(np.bmat([[adj_matrix1, Z1], [Z2, adj_matrix2]]))
+    return adj_matrix
+
+class GCNModel(Module):
+    def __init__(self, args):
+        super(GCNModel, self).__init__()
+        self.device = args.device
+        self.c = c = len(args.label2index)
+
+        self.Ci = Ci = 8 * 768
+        self.embeddings = BertEmbedding(args)
+
+        self.gc_dim = 1024
+        self.prj = Linear(768 * 8, self.gc_dim)
+        self.gc1 = GraphConvolution(self.gc_dim, self.gc_dim)
+        self.gc2 = GraphConvolution(self.gc_dim, self.gc_dim)
+        self.all_dim = 768 * 8 + self.gc_dim * 3
+
+        self.fc = Sequential(
+            Linear(self.all_dim, 1024),
+            Dropout(0.7),
+            ReLU(),
+            Linear(1024, self.c)
+        )
+    def forward(self, inputs):
+
+        embeddings = self.embeddings(inputs)
+        word_length = inputs['word_length']
+        adjs = inputs['adj_matrix']
+        adjs = [adj[:word_length[idx],:word_length[idx]] for idx, adj in enumerate(adjs)]
+        adj_matrix = adjs[0]
+        for i in range(1,len(adjs)):
+            adj_matrix = diagonal_block(adj_matrix, adjs[i])
+        adj_matrix = torch.from_numpy(adj_matrix).to(self.device)
+
+        x = self.prj(embeddings)
+
+        output1 = self.gc1(F.relu(x), adj_matrix)  # L, D
+        output2 = self.gc2(F.relu(output1), adj_matrix)  # L, D
+        final_reps = torch.cat([x, embeddings, output1, output2], dim=-1)  # L, xxxD
+        logits = self.fc(final_reps)  # B*L, C
         preds = torch.argmax(logits, dim=-1)
         return logits, preds
 

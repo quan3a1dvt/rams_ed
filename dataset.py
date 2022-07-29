@@ -2,8 +2,8 @@ import transformers
 from torch.utils.data import Dataset, DataLoader
 import json
 import torch
-
-
+import pickle
+import numpy as np
 def load_json(path):
     with open(path) as f:
         data = json.load(f)
@@ -48,12 +48,19 @@ def load_sentence_data(path):
             data.append((words, sent_labels))
     return data
 
+def load_adj_matrix(path):
+    adj_matrix = []
+    with open(path, 'rb') as f:
+        adj_matrix = pickle.load(f)
+    return adj_matrix
+
 
 class EDDataset(Dataset):
 
     def __init__(self, path, label2index, tokenizer, args):
         super(EDDataset, self).__init__()
-        self.sentence_data = load_sentence_data(path)
+        self.sentence_data = load_sentence_data(path['sentence_data'])
+        self.adj_matrix = load_adj_matrix(path['adj_matrix'])
         self.label2index = label2index
         self.tokenizer = tokenizer
         self.CLS = self.tokenizer.cls_token_id
@@ -71,6 +78,11 @@ class EDDataset(Dataset):
     def __getitem__(self, item):
         words, labels = self.sentence_data[item]
         word_length = len(words)
+
+        adj = self.adj_matrix[item]
+        adj_shape = adj.shape
+        adj_matrix = np.zeros((self.WML, self.WML), dtype=np.float32)
+        adj_matrix[:adj_shape[0], :adj_shape[1]] = adj
 
         all_pieces = [self.CLS]
         all_spans = []
@@ -102,7 +114,8 @@ class EDDataset(Dataset):
             'word_spans': all_spans,
             'bert_length': cls_text_sep_length,
             'word_length': word_length,
-            'target': targets
+            'target': targets,
+            'adj_matrix': adj_matrix
         }
 
     @staticmethod
@@ -121,6 +134,10 @@ def flatten(items):
     all_items =  [y for x in items for y in x]
     return torch.LongTensor(all_items)
 
+def np_to_tensor(items):
+    tensors = [torch.from_numpy(item) for item in items]
+    tensors = torch.stack(tensors,dim = 0)
+    return tensors
 
 TENSOR_TYPES = {
     'words': keep,
@@ -130,7 +147,8 @@ TENSOR_TYPES = {
     'word_spans': keep,
     'bert_length': torch.LongTensor,
     'word_length': torch.LongTensor,
-    'target': flatten
+    'target': flatten,
+    'adj_matrix': np_to_tensor,
 }
 
 if __name__ == '__main__':
