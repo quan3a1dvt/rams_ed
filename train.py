@@ -15,28 +15,28 @@ def arugment_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--lr', type=float, default=2e-5)
     parser.add_argument('--epoch', type=float, default=20)
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--update_bert', default=False, action='store_true')
 
     parser.add_argument('--bert_type', type=str, default='bert-base-cased')
     return parser
 
 train_path ={
-    'sentence_data': 'data/train.jsonlines',
-    'adj_matrix': 'data/adj_matrix/train.mat'
+    'sentence_data': 'data-2/train.jsonlines',
+    'adj_matrix': 'data-2/adj_matrix/train.mat'
 }
 test_path ={
-    'sentence_data': 'data/test.jsonlines',
-    'adj_matrix': 'data/adj_matrix/test.mat'
+    'sentence_data': 'data-2/test.jsonlines',
+    'adj_matrix': 'data-2/adj_matrix/test.mat'
 }
 dev_path ={
-    'sentence_data': 'data/dev.jsonlines',
-    'adj_matrix': 'data/adj_matrix/dev.mat'
+    'sentence_data': 'data-2/dev.jsonlines',
+    'adj_matrix': 'data-2/adj_matrix/dev.mat'
 }
 
 def train(args):
-    args.device = device = 'cuda'
-    args.label2index = label2index = load_json('data/label_2_id.json')
+    args.device = device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    args.label2index = label2index = load_json('data-2/label_2_id.json')
     tokenizer = AutoTokenizer.from_pretrained(args.bert_type)
     writer = SummaryWriter()
 
@@ -62,7 +62,7 @@ def train(args):
 
     model = GCNModel(args).to(device)
     params = [x for x in model.parameters() if x.requires_grad]
-    weight = [1.0] + [10.0 for _ in range(1, len(label2index))]
+    weight = [1.0] + [3.5 for _ in range(1, len(label2index))]
     weight = torch.cuda.FloatTensor(weight)
     ce = CrossEntropyLoss(weight=weight, ignore_index=-100)
     optimizer = torch.optim.Adam(params, lr=args.lr)
@@ -81,7 +81,7 @@ def train(args):
         for batch in bar:
             global_iter += 1
             logits, preds = model(batch)
-            # print('target', batch['target'].shape)
+
             golds = batch['target'].numpy().tolist()
             all_golds += golds
             preds = preds.detach().cpu().numpy().tolist()

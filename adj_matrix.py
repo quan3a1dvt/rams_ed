@@ -13,13 +13,13 @@ def get_adj_matrix(sent):
     sub_adj_matrix = np.eye(len(sent), dtype=np.float32)
     for token in tokens:
         u,v = token['id'] - 1 , token['head'] - 1
-        sub_adj_matrix[u][v] = 1.0
+        sub_adj_matrix[u][v] = sub_adj_matrix[v][u] = 1.0
     return sub_adj_matrix
 
 if __name__ == '__main__':
     names = ['train', 'dev', 'test']
     for name in names:
-        path = f'data/{name}.jsonlines'
+        path = f'data-2/{name}.jsonlines'
         sentence_data = load_sentence_data(path)
         adj_matrix = []
 
@@ -28,7 +28,7 @@ if __name__ == '__main__':
             sub_adj_matrix = get_adj_matrix(sent)
             adj_matrix.append(sub_adj_matrix)
 
-        out_path = f'data/adj_matrix/{name}.mat'
+        out_path = f'data-2/adj_matrix/{name}.mat'
         with open(out_path, 'wb') as f:
             pickle.dump(adj_matrix, f)
 
